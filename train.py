@@ -1,3 +1,4 @@
+# coding=utf-8
 """Training script for the WaveNet network on the VCTK corpus.
 
 This script trains a network with the WaveNet using data from the VCTK corpus,
@@ -20,7 +21,10 @@ from tensorflow.python.client import timeline
 from wavenet import WaveNetModel, AudioReader, optimizer_factory
 
 BATCH_SIZE = 1
-DATA_DIRECTORY = './VCTK-Corpus'
+DATA_DIRECTORY = '/home/fang/app/data/VCTK-Corpus/wav48/p376'
+# DATA_DIRECTORY = '/home/fang/app/data/VCTK-Corpus'
+# DATA_DIRECTORY = '/home/fang/PycharmProjects/tensorflow-wavenet/wavtool/data'
+# DATA_DIRECTORY = './VCTK-Corpus'
 LOGDIR_ROOT = './logdir'
 CHECKPOINT_EVERY = 50
 NUM_STEPS = int(1e5)
@@ -32,16 +36,15 @@ L2_REGULARIZATION_STRENGTH = 0
 SILENCE_THRESHOLD = 0.3
 EPSILON = 0.001
 MOMENTUM = 0.9
+OPTIMIZER = 'adam'  # adaptive moment estimation，自适应矩估计
 
 
 def get_arguments():
     def _str_to_bool(s):
         """Convert string to bool (in argparse context)."""
         if s.lower() not in ['true', 'false']:
-            raise ValueError('Argument needs to be a '
-                             'boolean, got {}'.format(s))
+            raise ValueError('Argument needs to be a boolean, got {}'.format(s))
         return {'true': True, 'false': False}[s.lower()]
-
 
     parser = argparse.ArgumentParser(description='WaveNet example network')
     parser.add_argument('--batch_size', type=int, default=BATCH_SIZE,
@@ -50,24 +53,24 @@ def get_arguments():
                         help='The directory containing the VCTK corpus.')
     parser.add_argument('--store_metadata', type=bool, default=False,
                         help='Whether to store advanced debugging information '
-                        '(execution time, memory consumption) for use with '
-                        'TensorBoard.')
+                             '(execution time, memory consumption) for use with '
+                             'TensorBoard.')
     parser.add_argument('--logdir', type=str, default=None,
                         help='Directory in which to store the logging '
-                        'information for TensorBoard. '
-                        'If the model already exists, it will restore '
-                        'the state and will continue training. '
-                        'Cannot use with --logdir_root and --restore_from.')
+                             'information for TensorBoard. '
+                             'If the model already exists, it will restore '
+                             'the state and will continue training. '
+                             'Cannot use with --logdir_root and --restore_from.')
     parser.add_argument('--logdir_root', type=str, default=None,
                         help='Root directory to place the logging '
-                        'output and generated model. These are stored '
-                        'under the dated subdirectory of --logdir_root. '
-                        'Cannot use with --logdir.')
+                             'output and generated model. These are stored '
+                             'under the dated subdirectory of --logdir_root. '
+                             'Cannot use with --logdir.')
     parser.add_argument('--restore_from', type=str, default=None,
                         help='Directory in which to restore the model from. '
-                        'This creates the new model under the dated directory '
-                        'in --logdir_root. '
-                        'Cannot use with --logdir.')
+                             'This creates the new model under the dated directory '
+                             'in --logdir_root. '
+                             'Cannot use with --logdir.')
     parser.add_argument('--checkpoint_every', type=int, default=CHECKPOINT_EVERY,
                         help='How many steps to save each checkpoint after')
     parser.add_argument('--num_steps', type=int, default=NUM_STEPS,
@@ -78,24 +81,23 @@ def get_arguments():
                         help='JSON file with the network parameters.')
     parser.add_argument('--sample_size', type=int, default=SAMPLE_SIZE,
                         help='Concatenate and cut audio samples to this many '
-                        'samples.')
+                             'samples.')
     parser.add_argument('--l2_regularization_strength', type=float,
                         default=L2_REGULARIZATION_STRENGTH,
                         help='Coefficient in the L2 regularization. '
-                        'Disabled by default')
+                             'Disabled by default')
     parser.add_argument('--silence_threshold', type=float,
                         default=SILENCE_THRESHOLD,
-                        help='Volume threshold below which to trim the start '
-                        'and the end from the training set samples.')
-    parser.add_argument('--optimizer', type=str, default='adam',
+                        help='Volume threshold below which to trim the start and the end from the training set samples.')
+    parser.add_argument('--optimizer', type=str, default=OPTIMIZER,
                         choices=optimizer_factory.keys(),
                         help='Select the optimizer specified by this option.')
     parser.add_argument('--momentum', type=float,
                         default=MOMENTUM, help='Specify the momentum to be '
-                        'used by sgd or rmsprop optimizer. Ignored by the '
-                        'adam optimizer.')
+                                               'used by sgd or rmsprop optimizer. Ignored by the '
+                                               'adam optimizer.')
     parser.add_argument('--histograms', type=_str_to_bool, default=False,
-                         help='Whether to store histogram summaries.')
+                        help='Whether to store histogram summaries.')
     return parser.parse_args()
 
 
@@ -113,8 +115,7 @@ def save(saver, sess, logdir, step):
 
 
 def load(saver, sess, logdir):
-    print("Trying to restore saved checkpoints from {} ...".format(logdir),
-          end="")
+    print("Trying to restore saved checkpoints from {} ...".format(logdir), end="")
 
     ckpt = tf.train.get_checkpoint_state(logdir)
     if ckpt:
@@ -206,8 +207,7 @@ def main():
     with tf.name_scope('create_inputs'):
         # Allow silence trimming to be skipped by specifying a threshold near
         # zero.
-        silence_threshold = args.silence_threshold if args.silence_threshold > \
-                                                      EPSILON else None
+        silence_threshold = args.silence_threshold if args.silence_threshold > EPSILON else None
         reader = AudioReader(
             args.data_dir,
             coord,
@@ -232,9 +232,7 @@ def main():
     if args.l2_regularization_strength == 0:
         args.l2_regularization_strength = None
     loss = net.loss(audio_batch, args.l2_regularization_strength)
-    optimizer = optimizer_factory[args.optimizer](
-                    learning_rate=args.learning_rate,
-                    momentum=args.momentum)
+    optimizer = optimizer_factory[args.optimizer](learning_rate=args.learning_rate, momentum=args.momentum)
     trainable = tf.trainable_variables()
     optim = optimizer.minimize(loss, var_list=trainable)
 
@@ -276,15 +274,10 @@ def main():
             if args.store_metadata and step % 50 == 0:
                 # Slow run that stores extra information for debugging.
                 print('Storing metadata')
-                run_options = tf.RunOptions(
-                    trace_level=tf.RunOptions.FULL_TRACE)
-                summary, loss_value, _ = sess.run(
-                    [summaries, loss, optim],
-                    options=run_options,
-                    run_metadata=run_metadata)
+                run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                summary, loss_value, _ = sess.run([summaries, loss, optim], options=run_options, run_metadata=run_metadata)
                 writer.add_summary(summary, step)
-                writer.add_run_metadata(run_metadata,
-                                        'step_{:04d}'.format(step))
+                writer.add_run_metadata(run_metadata, 'step_{:04d}'.format(step))
                 tl = timeline.Timeline(run_metadata.step_stats)
                 timeline_path = os.path.join(logdir, 'timeline.trace')
                 with open(timeline_path, 'w') as f:
@@ -294,8 +287,7 @@ def main():
                 writer.add_summary(summary, step)
 
             duration = time.time() - start_time
-            print('step {:d} - loss = {:.3f}, ({:.3f} sec/step)'
-                  .format(step, loss_value, duration))
+            print('step {:d} - loss = {:.3f}, ({:.3f} sec/step)'.format(step, loss_value, duration))
 
             if step % args.checkpoint_every == 0:
                 save(saver, sess, logdir, step)

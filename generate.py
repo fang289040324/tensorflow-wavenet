@@ -18,15 +18,15 @@ LOGDIR = './logdir'
 WINDOW = 8000
 WAVENET_PARAMS = './wavenet_params.json'
 SAVE_EVERY = None
-SILENCE_THRESHOLD = 0.1
+SILENCE_THRESHOLD = 0.5
+WAV_OUT_PATH = './generate_test.wav'
 
 
 def get_arguments():
     def _str_to_bool(s):
         """Convert string to bool (in argparse context)."""
         if s.lower() not in ['true', 'false']:
-            raise ValueError('Argument needs to be a '
-                             'boolean, got {}'.format(s))
+            raise ValueError('Argument needs to be a boolean, got {}'.format(s))
         return {'true': True, 'false': False}[s.lower()]
 
     def _ensure_positive_float(f):
@@ -36,8 +36,7 @@ def get_arguments():
         return float(f)
 
     parser = argparse.ArgumentParser(description='WaveNet generation script')
-    parser.add_argument(
-        'checkpoint', type=str, help='Which model checkpoint to generate from')
+    parser.add_argument('checkpoint', type=str, help='Which model checkpoint to generate from')
     parser.add_argument(
         '--samples',
         type=int,
@@ -53,13 +52,12 @@ def get_arguments():
         type=str,
         default=LOGDIR,
         help='Directory in which to store the logging '
-        'information for TensorBoard.')
+             'information for TensorBoard.')
     parser.add_argument(
         '--window',
         type=int,
         default=WINDOW,
-        help='The number of past samples to take into '
-        'account at each step')
+        help='The number of past samples to take into account at each step')
     parser.add_argument(
         '--wavenet_params',
         type=str,
@@ -68,7 +66,7 @@ def get_arguments():
     parser.add_argument(
         '--wav_out_path',
         type=str,
-        default=None,
+        default=WAV_OUT_PATH,
         help='Path to output wav file')
     parser.add_argument(
         '--save_every',
@@ -104,8 +102,8 @@ def create_seed(filename,
 
     quantized = mu_law_encode(audio, quantization_channels)
     cut_index = tf.cond(tf.size(quantized) < tf.constant(window_size),
-            lambda: tf.size(quantized),
-            lambda: tf.constant(window_size))
+                        lambda: tf.size(quantized),
+                        lambda: tf.constant(window_size))
 
     return quantized[:cut_index]
 
@@ -203,7 +201,8 @@ def main():
 
         # Prediction distribution at temperature=1.0 should be unchanged after scaling.
         if args.temperature == 1.0:
-            np.testing.assert_allclose(prediction, scaled_prediction, atol=1e-5, err_msg='Prediction scaling at temperature=1.0 is not working as intended.')
+            np.testing.assert_allclose(prediction, scaled_prediction, atol=1e-5,
+                                       err_msg='Prediction scaling at temperature=1.0 is not working as intended.')
 
         sample = np.random.choice(
             np.arange(quantization_channels), p=scaled_prediction)
@@ -218,8 +217,7 @@ def main():
             last_sample_timestamp = current_sample_timestamp
 
         # If we have partial writing, save the result so far.
-        if (args.wav_out_path and args.save_every and
-                (step + 1) % args.save_every == 0):
+        if args.wav_out_path and args.save_every and (step + 1) % args.save_every == 0:
             out = sess.run(decode, feed_dict={samples: waveform})
             write_wav(out, wavenet_params['sample_rate'], args.wav_out_path)
 
@@ -227,12 +225,11 @@ def main():
     print()
 
     # Save the result as an audio summary.
-    datestring = str(datetime.now()).replace(' ', 'T')
+    # dateString = str(datetime.now()).replace(' ', 'T')
     writer = tf.train.SummaryWriter(logdir)
     tf.audio_summary('generated', decode, wavenet_params['sample_rate'])
     summaries = tf.merge_all_summaries()
-    summary_out = sess.run(summaries,
-                           feed_dict={samples: np.reshape(waveform, [-1, 1])})
+    summary_out = sess.run(summaries, feed_dict={samples: np.reshape(waveform, [-1, 1])})
     writer.add_summary(summary_out)
 
     # Save the result as a wav file.

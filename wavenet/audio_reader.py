@@ -67,9 +67,7 @@ class AudioReader(object):
         self.silence_threshold = silence_threshold
         self.threads = []
         self.sample_placeholder = tf.placeholder(dtype=tf.float32, shape=None)
-        self.queue = tf.PaddingFIFOQueue(queue_size,
-                                         ['float32'],
-                                         shapes=[(None, 1)])
+        self.queue = tf.PaddingFIFOQueue(queue_size, ['float32'], shapes=[(None, 1)])
         self.enqueue = self.queue.enqueue([self.sample_placeholder])
 
         # TODO Find a better way to check this.
@@ -106,12 +104,10 @@ class AudioReader(object):
                     buffer_ = np.append(buffer_, audio)
                     while len(buffer_) > self.sample_size:
                         piece = np.reshape(buffer_[:self.sample_size], [-1, 1])
-                        sess.run(self.enqueue,
-                                 feed_dict={self.sample_placeholder: piece})
+                        sess.run(self.enqueue, feed_dict={self.sample_placeholder: piece})
                         buffer_ = buffer_[self.sample_size:]
                 else:
-                    sess.run(self.enqueue,
-                             feed_dict={self.sample_placeholder: audio})
+                    sess.run(self.enqueue, feed_dict={self.sample_placeholder: audio})
 
     def start_threads(self, sess, n_threads=1):
         for _ in range(n_threads):
